@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
 	time_t curtime;
 
 	//this part is just an example of how to send a message and not actually relevant
-	//its here to clarify whats needed to send and ack the message
+	//its here to clarify whats needed to send and ack the message and time it
 	char * msg = "The Grasshopper Lies Heavy\n";
 	gettimeofday(&tv1, NULL);	
 	ret = sendto(sockfd, msg, strlen(msg) +1, 0, (struct sockaddr *)&addr, sizeof(addr));
@@ -150,5 +150,7 @@ int main(int argc, char *argv[]) {
 		fprintf(avFile, "%ld\n", avarr[i]);
 	}
 	fclose(avFile);
+
+	//calculate R and Tprop here
 	return 0;
 }
