@@ -10,13 +10,18 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
+//define the host ip (same machine as the client code)
 #define LOCALHOST "127.0.0.1"
+//define the ephemeral port for client
+#define EPHEMERAL_PORT "6666"
 
+//this function is used to measure elapsed time in uS
 long subtime(struct timeval t1, struct timeval t2) {
 	return (t2.tv_sec - t1.tv_sec)*1000000 + t2.tv_usec- t1.tv_usec;
 }
 
 int main(int argc, char *argv[]) {
+	//get the port number from program arguments
 	int port = 0;
 	if(argc<2) {
 		printf("./client.c <port #>\n");
@@ -31,12 +36,14 @@ int main(int argc, char *argv[]) {
 		printf("Proceeding with port number %d\n", port);
 	}
 	
+	//initialize relevant data structures
 	int sockfd;
 	struct addrinfo hints;
 	struct addrinfo * serv;
 	struct addrinfo *p;
 	struct sockaddr_in addr;
 	
+	//dest: used to for getaddrinfo to populate struct
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	inet_pton(AF_INET, LOCALHOST, &addr.sin_addr);
@@ -51,31 +58,34 @@ int main(int argc, char *argv[]) {
 		printf("Error getaddrinfo with dest %d\n", ret);
 		return -1;
 	}
+	//iterate through the linked list but accept the first valid entry and create a socket
 	for(p = serv; p!=NULL; p = p->ai_next) {
 		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
-        break;
+        	    perror("client: socket");
+        	    continue;
+        	}
+        	break;
 	}
-	
+	//exit if no entry found
 	if(p==NULL) {
 		printf("Error with socket()\n");
 		return -1;
 	}
 	
+	//repeat the same process for the source
 	struct addrinfo * source;
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE;
 	
-	ret = getaddrinfo(NULL, "6666", &hints, &source);
+	ret = getaddrinfo(NULL, EPHEMERAL_PORT, &hints, &source);
 	if(ret!=0) {
 		printf("Error getaddrinfo with src %d\n", ret);
 		return -1;
 	}
 	
+	//bind the socket to a file descriptor
 	ret = bind(sockfd, source->ai_addr, source->ai_addrlen);
 	if(ret != 0) {
     		printf("bind error %d\n", ret);
@@ -86,6 +96,8 @@ int main(int argc, char *argv[]) {
 	struct timeval tv1, tv2;
 	time_t curtime;
 
+	//this part is just an example of how to send a message and not actually relevant
+	//its here to clarify whats needed to send and ack the message
 	char * msg = "The Grasshopper Lies Heavy\n";
 	gettimeofday(&tv1, NULL);	
 	ret = sendto(sockfd, msg, strlen(msg) +1, 0, (struct sockaddr *)&addr, sizeof(addr));
@@ -95,6 +107,7 @@ int main(int argc, char *argv[]) {
 	long timer = subtime(tv1, tv2);
 	printf("%s\n %ld\n", buff, timer);
 
+	//using files to save the data from multiple runs and calculate the average times
 	FILE *pFile;
 	FILE *avFile;
 	pFile = fopen("history.txt", "a+");
@@ -109,6 +122,9 @@ int main(int argc, char *argv[]) {
 	fclose(avFile);
 	fseek ( pFile , 0 , SEEK_END);
 	fprintf(pFile, "START\n");
+	
+	//for loop to test multiple different message sizes
+	//if bounds of the loop change the txt files should be deleted because they will no longer make sense
 	int j=0;
 	for(int i=50; i<500; i+=100) {
 		char rbuff[3000];
@@ -126,6 +142,8 @@ int main(int argc, char *argv[]) {
 		else
 			avarr[j++] = (avarr[j] + timer)/2;
 	}
+	
+	//save the calculated averages 
 	fclose(pFile);
 	avFile = fopen("average.txt", "w+");
 	for(int i=0; i<5; i++) {
